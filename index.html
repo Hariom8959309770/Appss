@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Multi-Device Sandbox Browser (40+ Devices)</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --card: #0b1120;
+      --border: #334155;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --success: #10b981;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+    body { background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* Top Control Bar */
+    header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .brand { font-size: 1.2rem; font-weight: 700; color: #60a5fa; display: flex; align-items: center; gap: 8px; }
+    .badge { background: #1d4ed8; color: #fff; font-size: 0.75rem; padding: 3px 8px; border-radius: 99px; }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: 1fr auto auto auto;
+      gap: 10px;
+      align-items: center;
+    }
+    @media (max-width: 900px) {
+      .controls-grid { grid-template-columns: 1fr; }
+    }
+
+    input, select, button {
+      background: var(--card);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 9px 12px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+    input:focus, select:focus { outline: 1px solid var(--accent); }
+    button {
+      background: var(--accent);
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    button:hover { background: var(--accent-hover); }
+    .btn-secondary { background: #475569; }
+    .btn-secondary:hover { background: #334155; }
+    .btn-success { background: var(--success); }
+    .btn-success:hover { background: #059669; }
+
+    /* Custom Override Drawer */
+    .custom-drawer {
+      background: #162032;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      display: none;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+    }
+    .custom-drawer.active { display: grid; }
+    .field-group { display: flex; flex-direction: column; gap: 4px; }
+    .field-group label { font-size: 0.75rem; color: var(--muted); }
+
+    /* Multi-Screen Viewport Grid */
+    .viewport-grid {
+      flex: 1;
+      padding: 16px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 16px;
+    }
+    .device-frame {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 640px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.35);
+    }
+    .device-header {
+      background: var(--card);
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.75rem;
+    }
+    .device-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .device-name { font-weight: 700; font-size: 0.9rem; color: #38bdf8; }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px 10px;
+      color: var(--muted);
+      background: #111827;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #1f2937;
+    }
+    .meta-item span { color: #e2e8f0; font-family: monospace; font-size: 0.72rem; }
+    .url-bar {
+      display: flex;
+      gap: 6px;
+      padding: 8px 12px;
+      background: #162032;
+      border-bottom: 1px solid var(--border);
+    }
+    .url-bar input { flex: 1; padding: 6px 10px; font-size: 0.8rem; }
+    .url-bar button { padding: 6px 10px; font-size: 0.78rem; }
+    iframe {
+      flex: 1;
+      width: 100%;
+      border: none;
+      background: #fff;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="top-row">
+    <div class="brand">
+      📱 Multi-Device Testing Browser <span class="badge">40 Devices Pool</span>
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <button class="btn-secondary" onclick="toggleCustomDrawer()">⚙️ Custom Identity Options</button>
+      <button class="btn-success" onclick="randomizeAllProfiles()">🔄 New Identity & Launch All</button>
+    </div>
+  </div>
+
+  <div class="controls-grid">
+    <input type="text" id="BatchUrls" placeholder="4-5 Links comma (,) se alag karke dalein — e.g. https://example.com, https://wikipedia.org, https://bing.com" value="https://example.com, https://www.wikipedia.org, https://httpbin.org/headers, https://duckduckgo.com">
+    
+    <select id="ScreenCount" onchange="renderGrid()">
+      <option value="4" selected>4 Simultaneous Windows</option>
+      <option value="5">5 Simultaneous Windows</option>
+      <option value="3">3 Simultaneous Windows</option>
+      <option value="2">2 Simultaneous Windows</option>
+      <option value="1">1 Single Window</option>
+    </select>
+
+    <select id="PresetDeviceSelect" onchange="applyPresetToCustom()">
+      <option value="random">-- Auto Random (From 40 Models) --</option>
+    </select>
+
+    <button onclick="openBatchLinks()">🚀 Open Links with New IDs</button>
+  </div>
+
+  <!-- Custom Parameters Drawer -->
+  <div class="custom-drawer" id="CustomDrawer">
+    <div class="field-group">
+      <label>Custom IP Prefix (Optional)</label>
+      <input type="text" id="CustomIP" placeholder="e.g. 103.21.244.x (Blank = Auto)">
+    </div>
+    <div class="field-group">
+      <label>Custom Mobile Model</label>
+      <input type="text" id="CustomModel" placeholder="Blank = Random 40 Models">
+    </div>
+    <div class="field-group">
+      <label>Custom Device ID (Android ID)</label>
+      <input type="text" id="CustomDeviceID" placeholder="Blank = Auto 16-Hex">
+    </div>
+    <div class="field-group">
+      <label>Custom IMEI (15 Digits)</label>
+      <input type="text" id="CustomIMEI" placeholder="Blank = Auto Valid IMEI">
+    </div>
+    <div class="field-group">
+      <label>Custom Serial Number</label>
+      <input type="text" id="CustomSerial" placeholder="Blank = Auto Serial">
+    </div>
+    <div class="field-group">
+      <label>Custom Wi-Fi MAC / Data ID</label>
+      <input type="text" id="CustomWifi" placeholder="Blank = Auto MAC/SSID">
+    </div>
+    <div class="field-group">
+      <label>Custom Build Number</label>
+      <input type="text" id="CustomBuild" placeholder="Blank = Auto OS Build">
+    </div>
+  </div>
+</header>
+
+<main class="viewport-grid" id="ViewportGrid"></main>
+
+<script>
+  // 40 Distinct Mobile Device Models Pool
+  const DEVICE_MODELS = [
+    "Samsung Galaxy S24 Ultra (SM-S928B)", "Samsung Galaxy S23 FE (SM-S711B)", "Samsung Galaxy A55 5G (SM-A556E)",
+    "Samsung Galaxy Z Fold 6 (SM-F956B)", "Samsung Galaxy M35 5G (SM-M356B)", "iPhone 16 Pro Max (A3296)",
+    "iPhone 16 (A3287)", "iPhone 15 Pro (A3102)", "iPhone 14 Plus (A2886)", "iPhone 13 (A2633)",
+    "Google Pixel 9 Pro XL (GGX8B)", "Google Pixel 8a (G6GPR)", "Google Pixel 7 Pro (GP4BC)",
+    "OnePlus 12 (CPH2581)", "OnePlus 12R (CPH2609)", "OnePlus Nord 4 (CPH2663)", "OnePlus Open (CPH2551)",
+    "Xiaomi 14 Ultra (24030PN60G)", "Xiaomi 14 Civi (24053PY09I)", "Redmi Note 13 Pro+ 5G (23090RA98G)",
+    "Redmi K70 Pro (23117RK66C)", "POCO F6 5G (24069PC21I)", "POCO X6 Pro 5G (2311DRK48G)",
+    "Vivo X100 Pro (V2309)", "Vivo V40 Pro (V2347)", "Vivo T3 Ultra (V2426)", "iQOO 12 5G (I2302)",
+    "iQOO Neo 9 Pro (I2304)", "Oppo Find X7 Ultra (PHY110)", "Oppo Reno 12 Pro 5G (CPH2629)",
+    "Realme GT 6 (RMX3851)", "Realme 13 Pro+ 5G (RMX3921)", "Motorola Edge 50 Ultra (XT2401-1)",
+    "Motorola Razr 50 Ultra (XT2451-3)", "Nothing Phone (2) (A065)", "Nothing Phone (2a) Plus (A142P)",
+    "Asus ROG Phone 8 Pro (AI2401)", "Sony Xperia 1 VI (XQ-EC54)", "Honor Magic 6 Pro (BVL-N49)",
+    "Infinix GT 20 Pro (X6871)"
+  ];
+
+  const CARRIERS = ["JioTrue5G", "Airtel_5G_Plus", "Vi_India_4G", "BSNL_4G", "Verizon_5G", "TMobile_5G"];
+
+  // Populate 40 Models Dropdown
+  const presetSelect = document.getElementById('PresetDeviceSelect');
+  DEVICE_MODELS.forEach((model, idx) => {
+    const opt = document.createElement('option');
+    opt.value = model;
+    opt.textContent = `${idx + 1}. ${model}`;
+    presetSelect.appendChild(opt);
+  });
+
+  function randInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  function randHex(len) {
+    let s = '';
+    const chars = '0123456789abcdef';
+    for (let i = 0; i < len; i++) s += chars[randInt(0, 15)];
+    return s;
+  }
+
+  function randAlphaNum(len) {
+    let s = '';
+    const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    for (let i = 0; i < len; i++) s += chars[randInt(0, chars.length - 1)];
+    return s;
+  }
+
+  // Generate 15-digit Luhn-valid IMEI
+  function generateIMEI() {
+    const tacList = ["35480911", "86740205", "35912410", "35209911", "86119406", "35674111"];
+    let imei = tacList[randInt(0, tacList.length - 1)] + String(randInt(100000, 999999));
+    let sum = 0;
+    for (let i = 0; i < 14; i++) {
+      let d = parseInt(imei[i], 10);
+      if (i % 2 === 1) {
+        d *= 2;
+        if (d > 9) d -= 9;
+      }
+      sum += d;
+    }
+    const checkDigit = (10 - (sum % 10)) % 10;
+    return imei + checkDigit;
+  }
+
+  function generateMAC() {
+    const octets = [];
+    for (let i = 0; i < 6; i++) octets.push(randHex(2).toUpperCase());
+    return octets.join(':');
+  }
+
+  function generateIP(customPrefix) {
+    if (customPrefix && customPrefix.trim() !== '') {
+      return customPrefix.replace(/x/gi, () => randInt(2, 254));
+    }
+    const publicBlocks = [49, 103, 106, 117, 122, 157, 45, 185, 203];
+    return `${publicBlocks[randInt(0, publicBlocks.length - 1)]}.${randInt(10, 250)}.${randInt(1, 254)}.${randInt(2, 254)}`;
+  }
+
+  function generateBuildNumber() {
+    const prefixes = ["UP1A", "UQ1A", "AP2A", "TP1A", "SKQ1", "RKQ1"];
+    return `${prefixes[randInt(0, prefixes.length - 1)]}.${randInt(220101, 240901)}.00${randInt(1, 9)}`;
+  }
+
+  function generateDeviceProfile(usedIndices) {
+    let modelIdx = randInt(0, DEVICE_MODELS.length - 1);
+    while (usedIndices.has(modelIdx) && usedIndices.size < DEVICE_MODELS.length) {
+      modelIdx = randInt(0, DEVICE_MODELS.length - 1);
+    }
+    usedIndices.add(modelIdx);
+
+    const customIP = document.getElementById('CustomIP').value.trim();
+    const customModel = document.getElementById('CustomModel').value.trim();
+    const customDeviceID = document.getElementById('CustomDeviceID').value.trim();
+    const customIMEI = document.getElementById('CustomIMEI').value.trim();
+    const customSerial = document.getElementById('CustomSerial').value.trim();
+    const customWifi = document.getElementById('CustomWifi').value.trim();
+    const customBuild = document.getElementById('CustomBuild').value.trim();
+
+    return {
+      model: customModel || DEVICE_MODELS[modelIdx],
+      ip: generateIP(customIP),
+      deviceId: customDeviceID || randHex(16),
+      imei: customIMEI || generateIMEI(),
+      serial: customSerial || `R58${randAlphaNum(8)}`,
+      wifiDataId: customWifi || `${generateMAC()} | ${CARRIERS[randInt(0, CARRIERS.length - 1)]}_${randInt(100,999)}`,
+      build: customBuild || generateBuildNumber()
+    };
+  }
+
+  function toggleCustomDrawer() {
+    document.getElementById('CustomDrawer').classList.toggle('active');
+  }
+
+  function applyPresetToCustom() {
+    const val = document.getElementById('PresetDeviceSelect').value;
+    document.getElementById('CustomModel').value = val === 'random' ? '' : val;
+  }
+
+  function parseUrls(count) {
+    const raw = document.getElementById('BatchUrls').value;
+    const list = raw.split(',').map(u => u.trim()).filter(Boolean);
+    const urls = [];
+    for (let i = 0; i < count; i++) {
+      let u = list[i % list.length] || 'https://example.com';
+      if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+      urls.push(u);
+    }
+    return urls;
+  }
+
+  function renderGrid() {
+    const count = parseInt(document.getElementById('ScreenCount').value, 10);
+    const urls = parseUrls(count);
+    const grid = document.getElementById('ViewportGrid');
+    grid.innerHTML = '';
+    const usedModels = new Set();
+
+    for (let i = 0; i < count; i++) {
+      const profile = generateDeviceProfile(usedModels);
+      const url = urls[i];
+
+      const card = document.createElement('div');
+      card.className = 'device-frame';
+      card.id = `device-card-${i}`;
+      card.innerHTML = `
+        <div class="device-header">
+          <div class="device-title-row">
+            <span class="device-name" id="model-${i}">#${i + 1} ${profile.model}</span>
+            <button class="btn-secondary" style="padding:3px 8px; font-size:0.72rem;" onclick="refreshSingleDevice(${i})">🎲 Change Device & Reload</button>
+          </div>
+          <div class="meta-grid">
+            <div class="meta-item">IP: <span id="ip-${i}">${profile.ip}</span></div>
+            <div class="meta-item">IMEI: <span id="imei-${i}">${profile.imei}</span></div>
+            <div class="meta-item">Device ID: <span id="devid-${i}">${profile.deviceId}</span></div>
+            <div class="meta-item">Serial: <span id="serial-${i}">${profile.serial}</span></div>
+            <div class="meta-item">Build: <span id="build-${i}">${profile.build}</span></div>
+            <div class="meta-item">WiFi/Data: <span id="wifi-${i}">${profile.wifiDataId}</span></div>
+          </div>
+        </div>
+        <div class="url-bar">
+          <input type="text" id="url-input-${i}" value="${url}">
+          <button onclick="navigateSingle(${i})">Go (New ID)</button>
+        </div>
+        <iframe id="iframe-${i}" src="${url}" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
+      `;
+      grid.appendChild(card);
+    }
+  }
+
+  function refreshSingleDevice(index, newUrl) {
+    const profile = generateDeviceProfile(new Set());
+    document.getElementById(`model-${index}`).textContent = `#${index + 1} ${profile.model}`;
+    document.getElementById(`ip-${index}`).textContent = profile.ip;
+    document.getElementById(`imei-${index}`).textContent = profile.imei;
+    document.getElementById(`devid-${index}`).textContent = profile.deviceId;
+    document.getElementById(`serial-${index}`).textContent = profile.serial;
+    document.getElementById(`build-${index}`).textContent = profile.build;
+    document.getElementById(`wifi-${index}`).textContent = profile.wifiDataId;
+
+    const inputEl = document.getElementById(`url-input-${index}`);
+    let targetUrl = newUrl || inputEl.value.trim();
+    if (!/^https?:\/\//i.test(targetUrl)) targetUrl = 'https://' + targetUrl;
+    inputEl.value = targetUrl;
+
+    const iframe = document.getElementById(`iframe-${index}`);
+    const sep = targetUrl.includes('?') ? '&' : '?';
+    iframe.src = `${targetUrl}${sep}_sim_device=${encodeURIComponent(profile.deviceId)}`;
+  }
+
+  function navigateSingle(index) {
+    const url = document.getElementById(`url-input-${index}`).value;
+    refreshSingleDevice(index, url);
+  }
+
+  function openBatchLinks() {
+    renderGrid();
+  }
+
+  function randomizeAllProfiles() {
+    renderGrid();
+  }
+
+  // Initial Load
+  renderGrid();
+</script>
+</body>
+</html>
